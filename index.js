@@ -16,7 +16,7 @@ async function checkPrice() {
         console.log(`Current price of ${tokenSymbol}: ${currentPrice}`);
 
         if (currentPrice >= priceThreshold) {
-            const message = `${currentPrice} ${tokenSymbol} threshold of ${priceThreshold}.`;
+            const message = `${currentPrice} ${tokenSymbol} threshold ${priceThreshold}.`;
 
             await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 chat_id: telegramChatId,
