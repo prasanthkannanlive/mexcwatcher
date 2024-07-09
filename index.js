@@ -16,7 +16,7 @@ async function checkPrice() {
         console.log(`Current price of ${tokenSymbol}: ${currentPrice}`);
 
         if (currentPrice >= priceThreshold) {
-            const message = `Price alert: ${tokenSymbol} has reached ${currentPrice}, which is above your threshold of ${priceThreshold}.`;
+            const message = `${currentPrice} ${tokenSymbol} threshold of ${priceThreshold}.`;
 
             await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 chat_id: telegramChatId,
@@ -31,7 +31,7 @@ async function checkPrice() {
 }
 
 // Check the price every hour (3600000 milliseconds)
-setInterval(checkPrice, 60000);
+setInterval(checkPrice, 3600000);
 
 // Initial check
 checkPrice();
