@@ -1,3 +1,4 @@
+const http = require('http');
 const axios = require('axios');
 require('dotenv').config();
 
@@ -16,7 +17,7 @@ async function checkPrice() {
         console.log(`Current price of ${tokenSymbol}: ${currentPrice}`);
 
         if (currentPrice >= priceThreshold) {
-            const message = `${currentPrice} ${tokenSymbol} threshold ${priceThreshold}.`;
+            const message = `Price alert: ${tokenSymbol} has reached ${currentPrice}, which is above your threshold of ${priceThreshold}.`;
 
             await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
                 chat_id: telegramChatId,
@@ -35,3 +36,23 @@ setInterval(checkPrice, 3600000);
 
 // Initial check
 checkPrice();
+
+// Create an HTTP server
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Price alert service is running\n');
+});
+
+// Listen on the port provided by the environment or default to 10000
+const PORT = process.env.PORT || 10000;
+server.listen(PORT, () => {
+    console.log(`Server is listening on port ${PORT}`);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use. Please use a different port.`);
+    } else {
+        console.error('Server error:', err);
+    }
+});
