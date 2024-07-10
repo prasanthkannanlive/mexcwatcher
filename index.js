@@ -1,58 +1,59 @@
-const http = require('http');
-const axios = require('axios');
 require('dotenv').config();
+const axios = require('axios');
 
-const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-const telegramChatId = process.env.TELEGRAM_CHAT_ID;
-const tokenSymbol = process.env.TOKEN_SYMBOL;
-const priceThreshold = parseFloat(process.env.PRICE_THRESHOLD);
+const SYMBOL = process.env.TRADING_PAIR || 'BTC_USDT';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-const mexcApiUrl = `https://api.mexc.com/api/v3/ticker/price?symbol=${tokenSymbol}`;
-
-async function checkPrice() {
-    try {
-        const response = await axios.get(mexcApiUrl);
-        const currentPrice = parseFloat(response.data.price);
-
-        console.log(`Current price of ${tokenSymbol}: ${currentPrice}`);
-
-        if (currentPrice >= priceThreshold) {
-            const message = `Price alert: ${tokenSymbol} has reached ${currentPrice}, which is above your threshold of ${priceThreshold}.`;
-
-            await axios.post(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
-                chat_id: telegramChatId,
-                text: message
-            });
-
-            console.log('Price alert sent to Telegram.');
-        }
-    } catch (error) {
-        console.error('Error fetching price or sending alert:', error);
+async function getTokenPrice(symbol) {
+  try {
+    const url = `https://www.mexc.com/open/api/v2/market/ticker?symbol=${symbol}`;
+    const response = await axios.get(url);
+    if (response.data.code === 200 && response.data.data.length > 0) {
+      return parseFloat(response.data.data[0].last);
     }
+  } catch (error) {
+    console.error('Error fetching price:', error.message);
+  }
+  return null;
 }
 
-// Check the price every hour (3600000 milliseconds)
-setInterval(checkPrice, 3600000);
+async function sendTelegramMessage(message) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    console.log('Telegram configuration not found. Skipping notification.');
+    return;
+  }
 
-// Initial check
-checkPrice();
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await axios.post(url, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: message
+    });
+  } catch (error) {
+    console.error('Error sending Telegram message:', error.message);
+  }
+}
 
-// Create an HTTP server
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Price alert service is running\n');
-});
+async function main() {
+  console.log(`Starting price tracker for ${SYMBOL}`);
 
-// Listen on the port provided by the environment or default to 10000
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}`);
-});
-
-server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use. Please use a different port.`);
+  while (true) {
+    const price = await getTokenPrice(SYMBOL);
+    if (price !== null) {
+      const currentTime = new Date().toISOString().replace('T', ' ').substr(0, 19);
+      const message = ` $${price.toFixed(4)}`;
+      console.log(message);
+      await sendTelegramMessage(message);
     } else {
-        console.error('Server error:', err);
+      const errorMessage = `Failed to fetch price for ${SYMBOL}`;
+      console.log(errorMessage);
+      await sendTelegramMessage(errorMessage);
     }
-});
+
+    // Wait for 1 hour
+    await new Promise(resolve => setTimeout(resolve, 3600000));
+  }
+}
+
+main();
